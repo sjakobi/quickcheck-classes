@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 {-# OPTIONS_GHC -Wall #-}
@@ -9,6 +10,7 @@ module Test.QuickCheck.Classes.Monoid
 
 import Data.Monoid
 import Data.Proxy (Proxy)
+import qualified Data.Semigroup as SG
 import Test.QuickCheck hiding ((.&.))
 import Test.QuickCheck.Property (Property)
 
@@ -22,6 +24,8 @@ import Test.QuickCheck.Classes.Common (Laws(..), SmallList(..), myForAllShrink)
 --   @mappend mempty a ≡ a@
 -- [/Right Identity/]
 --   @mappend a mempty ≡ a@
+-- [/Extension of Semigroup/]
+--   @mappend ≡ (<>)@
 -- [/Concatenation/]
 --   @mconcat as ≡ foldr mappend mempty as@
 monoidLaws :: (Monoid a, Eq a, Arbitrary a, Show a) => Proxy a -> Laws
@@ -29,6 +33,9 @@ monoidLaws p = Laws "Monoid"
   [ ("Associative", monoidAssociative p)
   , ("Left Identity", monoidLeftIdentity p)
   , ("Right Identity", monoidRightIdentity p)
+#if MIN_VERSION_base(4,11,0)
+  , ("Extension of Semigroup", monoidSemigroup p)
+#endif
   , ("Concatenation", monoidConcatenation p)
   ]
 
@@ -75,6 +82,16 @@ monoidRightIdentity _ = myForAllShrink False (const True)
   (\a -> mappend a mempty)
   "a"
   (\a -> a)
+
+#if MIN_VERSION_base(4,11,0)
+monoidSemigroup :: forall a. (Monoid a, Eq a, Arbitrary a, Show a) => Proxy a -> Property
+monoidSemigroup _ = myForAllShrink True (const True)
+  (\(a :: a,b) -> ["a = " ++ show a, "b = " ++ show b])
+  "mappend a b"
+  (\(a,b) -> mappend a b)
+  "a <> b"
+  (\(a,b) -> a SG.<> b)
+#endif
 
 monoidCommutative :: forall a. (Monoid a, Eq a, Arbitrary a, Show a) => Proxy a -> Property
 monoidCommutative _ = myForAllShrink True (const True)
